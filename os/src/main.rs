@@ -14,13 +14,15 @@
 
 use core::arch::global_asm;
 use log::*;
+use timer::sleep_us;
 
 #[macro_use]
 mod console;
 mod lang_items;
 mod logging;
 mod sbi;
-
+mod config;
+mod timer;
 global_asm!(include_str!("entry.asm"));
 
 /// clear BSS segment
@@ -49,6 +51,8 @@ pub fn rust_main() -> ! {
     }
     clear_bss();
     logging::init();
+    sleep_us(5000000);
+    println!("Time to wake up after 5s");
     println!("[kernel] Hello, world!");
     trace!(
         "[kernel] .text [{:#x}, {:#x})",
