@@ -9,21 +9,6 @@ fn main() {
 
 static TARGET_PATH: &str = "../user/target/riscv64gc-unknown-none-elf/release/";
 
-fn insert_app_name(apps: &Vec<String>, f: &mut File) -> Result<()> {
-    // Create the _names_app section and add application names as strings
-    writeln!(f, r#"
-    .align 3
-    .section .data
-    .global _names_app
-_names_app:"#)?;
-
-    for (idx, app) in apps.iter().enumerate() {
-        writeln!(f, r#"
-    .asciz "{0}""#, app)?;  // .asciz will write the app name as a null-terminated string
-    }
-    Ok(())
-}
-
 fn insert_app_data() -> Result<()> {
     let mut f = File::create("src/link_app.S").unwrap();
     let mut apps: Vec<_> = read_dir("../user/src/bin")
@@ -37,7 +22,6 @@ fn insert_app_data() -> Result<()> {
         .collect();
     apps.sort();
 
-    // Write the basic _num_app and app start/end information
     writeln!(
         f,
         r#"
@@ -54,10 +38,6 @@ _num_app:
     }
     writeln!(f, r#"    .quad app_{}_end"#, apps.len() - 1)?;
 
-    // Insert the _names_app section
-    insert_app_name(&apps, &mut f)?;
-
-    // Write the application data
     for (idx, app) in apps.iter().enumerate() {
         println!("app_{}: {}", idx, app);
         writeln!(
@@ -72,6 +52,5 @@ app_{0}_end:"#,
             idx, app, TARGET_PATH
         )?;
     }
-
     Ok(())
 }
