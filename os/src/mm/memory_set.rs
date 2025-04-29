@@ -63,6 +63,27 @@ impl MemorySet {
             None,
         );
     }
+    /// Free the virtual memory area
+    pub fn free_framed_area(&mut self, start_va: VirtAddr, end_va: VirtAddr) {
+        let virtual_page_start = start_va.floor();
+        let virtual_page_end = end_va.ceil();
+        let index = self.areas.iter_mut().position(|map| {
+            map.vpn_range.get_start() == virtual_page_start
+                && map.vpn_range.get_end() == virtual_page_end
+        });
+
+        if let Some(index) = index {
+            self.areas[index].unmap(&mut self.page_table);
+            self.areas.remove(index);
+        }
+    }
+    /// Check if memory range include allocated memory
+    pub fn include_allocated(&self, start_address: VirtAddr, end_address: VirtAddr) -> bool {
+        self.areas.iter().any(|area| {
+            area.vpn_range.get_end() > start_address.floor()
+                && area.vpn_range.get_start() < end_address.ceil()
+        })
+    }
     fn push(&mut self, mut map_area: MapArea, data: Option<&[u8]>) {
         map_area.map(&mut self.page_table);
         if let Some(data) = data {
