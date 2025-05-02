@@ -157,7 +157,7 @@ pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize) -> Vec<&
     let mut v = Vec::new();
     while start < end {
         let start_va = VirtAddr::from(start);
-        let mut vpn = start_va.floor();
+        let mut vpn = start_va.floor();     //VirtAddr -> VirtPageNum
         let ppn = page_table.translate(vpn).unwrap().ppn();
         vpn.step();
         let mut end_va: VirtAddr = vpn.into();
