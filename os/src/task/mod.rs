@@ -14,14 +14,15 @@ mod switch;
 #[allow(clippy::module_inception)]
 mod task;
 
-use crate::config::MAX_APP_NUM;
+use crate::config::{MAX_APP_NUM, MAX_SYSCALL_NUM};
 use crate::loader::{get_num_app, init_app_cx};
 use crate::sync::UPSafeCell;
 use lazy_static::*;
 use switch::__switch;
-pub use task::{TaskControlBlock, TaskInfo, TaskStatus};
+pub use task::{TaskControlBlock, TaskStatus};
 
 pub use context::TaskContext;
+use crate::task::task::TaskInfo;
 
 /// The task manager, where all the tasks are managed.
 ///
@@ -137,17 +138,19 @@ impl TaskManager {
         }
     }
 
-    /// Add syscall times when a syscall is called
-    fn set_task_syscall_info(&self, task_block: TaskControlBlock) {
+    fn increase_current_syscall_count(&self,syscall_id: usize) {
+        if syscall_id>=MAX_SYSCALL_NUM{
+            return ;
+        }
         let mut inner = self.inner.exclusive_access();
-        let current_task = inner.current_task;
-        inner.tasks[current_task] = task_block;
+        let current = inner.current_task;
+        inner.tasks[current].task_info.syscall_times[syscall_id] += 1;
     }
 
-    /// Get current task info
-    fn get_task_syscall_info(&self) -> TaskControlBlock {
+    fn get_current_task_info(&self) -> TaskControlBlock {
         let inner = self.inner.exclusive_access();
-        inner.tasks[inner.current_task]
+        let current =  inner.current_task;
+        inner.tasks[current]
     }
 }
 
@@ -183,13 +186,11 @@ pub fn exit_current_and_run_next() {
     mark_current_exited();
     run_next_task();
 }
-
-/// Record the syscall times of the current task.
-pub fn set_current_task_block(task_block: TaskControlBlock) {
-    TASK_MANAGER.set_task_syscall_info(task_block);
+///add each time
+pub fn increase_current_syscall_count(syscall_id: usize) {
+    TASK_MANAGER.increase_current_syscall_count(syscall_id);
 }
-
-/// Get the current task info.
-pub fn get_current_task_block() -> TaskControlBlock {
-    TASK_MANAGER.get_task_syscall_info()
+///get current task info -> tcb
+pub fn get_current_task_info() -> TaskControlBlock {
+    TASK_MANAGER.get_current_task_info()
 }
