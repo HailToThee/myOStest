@@ -65,6 +65,8 @@ impl PageTableEntry {
 }
 
 /// page table structure
+/// page table is consisted of root_ppn and frames(vector <FrameTrackers>)
+/// frametracker is a ppn type  Usize => Physical page number   This defination is using rust's properties.
 pub struct PageTable {
     root_ppn: PhysPageNum,
     frames: Vec<FrameTracker>,
@@ -81,6 +83,7 @@ impl PageTable {
         }
     }
     /// Temporarily used to get arguments from user space.
+    /// from_token can be ragard as Creating a type of PageTable whose satp->root_ppn
     pub fn from_token(satp: usize) -> Self {
         Self {
             root_ppn: PhysPageNum::from(satp & ((1usize << 44) - 1)),
@@ -109,7 +112,8 @@ impl PageTable {
     }
     /// Find PageTableEntry by VirtPageNum
     fn find_pte(&self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
-        let idxs = vpn.indexes();
+        let idxs = vpn.indexes(); //vpn.indexes  return a vector[3] {vpn[0],vpn[1],vpn[2]}
+        //in finding the final pte, each vpn is regarded as an offset in its mapped pagetable
         let mut ppn = self.root_ppn;
         let mut result: Option<&mut PageTableEntry> = None;
         for (i, idx) in idxs.iter().enumerate() {

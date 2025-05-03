@@ -284,7 +284,12 @@ impl MemorySet {
         }
     }
 }
-/// map area structure, controls a contiguous piece of virtual memory
+/// map area structure, controls a contiguous piece of virtual memory(控制连续的虚拟内存片)
+/// 
+/// 有一个问题？ 有了PageTalbe 即一个root_ppn对应一群ppn  为什么还要有MapArea？
+/// MapArea描述的是一段虚拟内存片段，主要存了虚存地址段、权限、映射类型和每一段虚拟内存页对应的物理页框，
+/// MapArea的impl里面，比如map和unmap，实际就是对页表的批量操作，调用的还是PageTable里的接口。
+/// PageTable相比MapArea就更底层一些，描述和负责的是页表项的具体管理，提供map unmap这种基础的接口，主要功能是映射
 pub struct MapArea {
     vpn_range: VPNRange,
     data_frames: BTreeMap<VirtPageNum, FrameTracker>,

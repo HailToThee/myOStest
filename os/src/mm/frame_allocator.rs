@@ -14,6 +14,7 @@ pub struct FrameTracker {
     pub ppn: PhysPageNum,
 }
 
+///FrameTracker 是对usize的二层抽象
 impl FrameTracker {
     /// Create a new FrameTracker
     pub fn new(ppn: PhysPageNum) -> Self {
