@@ -48,8 +48,9 @@ lazy_static! {
 }
 
 /// Abstract structure of PID
+/// 同一时间存在的所有进程都有一个自己的进程标识符，它们是互不相同的整数。
+/// 这里将其抽象为一个 PidHandle 类型，当它的生命周期结束后，对应的整数会被编译器自动回收
 pub struct PidHandle(pub usize);
-
 impl Drop for PidHandle {
     fn drop(&mut self) {
         //println!("drop pid {}", self.0);

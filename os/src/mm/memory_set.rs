@@ -60,7 +60,7 @@ impl MemorySet {
             None,
         );
     }
-    /// remove a area
+    /// remove an area
     pub fn remove_area_with_start_vpn(&mut self, start_vpn: VirtPageNum) {
         if let Some((idx, area)) = self
             .areas
@@ -83,6 +83,7 @@ impl MemorySet {
         self.areas.push(map_area);
     }
     /// Mention that trampoline is not collected by areas.
+    /// 直接在多级页表中插入一个从地址空间的最高虚拟页面映射到 跳板汇编代码所在的物理页帧的键值对，访问方式限制与代码段相同，即 RX 。
     fn map_trampoline(&mut self) {
         self.page_table.map(
             VirtAddr::from(TRAMPOLINE).into(),
@@ -91,6 +92,9 @@ impl MemorySet {
         );
     }
     /// Without kernel stacks.
+    /// 内核的 MemorySet：通常只需要一个实例，使用 new_kernel 方法来创建。
+    /// 这个 MemorySet 包含了内核的所有段（如 .text, .rodata, .data, .bss）以及一些特殊区域（例如 trampoline 页、trap 上下文等）。
+    /// 这是因为内核在整个系统生命周期中是固定的，并且它的代码和数据通常不会频繁改变。
     pub fn new_kernel() -> Self {
         let mut memory_set = Self::new_bare();
         // map trampoline
@@ -157,6 +161,9 @@ impl MemorySet {
     }
     /// Include sections in elf and trampoline and TrapContext and user stack,
     /// also returns user_sp_base and entry point.
+    /// 用户态的 MemorySet：每个用户态进程都需要自己的 MemorySet 实例，
+    /// 因为每个进程都有不同的代码、数据、堆栈等内容，并且它们之间需要保持隔离。
+    /// 这意味着你需要另一个方法（比如 from_elf 或类似的函数）来为每个用户态进程创建并初始化其 MemorySet。
     pub fn from_elf(elf_data: &[u8]) -> (Self, usize, usize) {
         let mut memory_set = Self::new_bare();
         // map trampoline
@@ -228,6 +235,7 @@ impl MemorySet {
             None,
         );
         (
+            ///返回 MemorySet 以及其他相关信息（如用户栈顶地址和入口点地址）
             memory_set,
             user_stack_top,
             elf.header.pt2.entry_point() as usize,
@@ -254,6 +262,8 @@ impl MemorySet {
         memory_set
     }
     /// Change page table by writing satp CSR Register.
+    /// 一个进程到另一个进程或从用户态到内核态的上下文切换的时候调用activate告知CPU  我们可以这样说：
+    /// 一个satp就对应了一个memory_set  satp相当于钥匙
     pub fn activate(&self) {
         let satp = self.page_table.token();
         unsafe {
