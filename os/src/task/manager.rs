@@ -22,8 +22,17 @@ impl TaskManager {
         self.ready_queue.push_back(task);
     }
     /// Take a process out of the ready queue
-    pub fn fetch(&mut self) -> Option<Arc<TaskControlBlock>> {
-        self.ready_queue.pop_front()
+    fn fetch(&self) -> Option<Arc<TaskControlBlock>> {
+        let mut min_stride = usize::MAX;
+        let mut min_task = None;
+        for task in self.ready_queue.iter() {
+            let stride = task.inner_exclusive_access().task_stride;
+            if stride < min_stride {
+                min_stride = stride;
+                min_task = Some(task.clone());
+            }
+        }
+        min_task
     }
 }
 

@@ -20,7 +20,7 @@ mod processor;
 mod switch;
 #[allow(clippy::module_inception)]
 mod task;
-
+const BIG_STRIDE: usize = usize::MAX / 2 + 1;
 use crate::loader::get_app_data_by_name;
 use alloc::sync::Arc;
 use lazy_static::*;
@@ -39,9 +39,10 @@ pub use processor::{
 pub fn suspend_current_and_run_next() {
     // There must be an application running.
     let task = take_current_task().unwrap();
-
+    
     // ---- access current TCB exclusively
     let mut task_inner = task.inner_exclusive_access();
+    task_inner.task_stride = task_inner.task_stride + BIG_STRIDE / task_inner.task_priority;
     let task_cx_ptr = &mut task_inner.task_cx as *mut TaskContext;
     // Change status to Ready
     task_inner.task_status = TaskStatus::Ready;

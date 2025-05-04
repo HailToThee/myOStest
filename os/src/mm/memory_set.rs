@@ -235,7 +235,7 @@ impl MemorySet {
             None,
         );
         (
-            ///返回 MemorySet 以及其他相关信息（如用户栈顶地址和入口点地址）
+            //返回 MemorySet 以及其他相关信息（如用户栈顶地址和入口点地址）
             memory_set,
             user_stack_top,
             elf.header.pt2.entry_point() as usize,

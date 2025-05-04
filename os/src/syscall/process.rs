@@ -21,7 +21,7 @@ pub struct TimeVal {
 /// Task information
 #[allow(dead_code)]
 pub struct TaskInfo {
-    /// Task status in it's life cycle
+    /// Task status in its life cycle
     status: TaskStatus,
     /// The numbers of syscall called by task
     syscall_times: [u32; MAX_SYSCALL_NUM],
@@ -171,7 +171,26 @@ pub fn sys_spawn(_path: *const u8) -> isize {
         "kernel:pid[{}] sys_spawn NOT IMPLEMENTED",
         current_task().unwrap().pid.0
     );
-    -1
+    let token = current_user_token();
+    let path = translated_str(token, _path);
+    if let Some(data) = get_app_data_by_name(path.as_str()) {
+        // 获取当前任务
+        let current_task = current_task().unwrap();
+        // 创建新任务（不复制父进程内存）
+        let new_task = current_task.spawn(data);
+        let new_pid = new_task.pid.0;
+
+        // 设置新任务的 trap 上下文，使其从程序入口开始执行
+        let trap_cx = new_task.inner_exclusive_access().get_trap_cx();
+        trap_cx.x[10] = 0; // 子进程返回 0
+
+        // 将新任务加入调度器
+        add_task(new_task);
+        new_pid as isize
+    } else {
+        // 如果找不到程序，返回 -1
+        -1
+    }
 }
 
 // YOUR JOB: Set task priority.
@@ -180,5 +199,8 @@ pub fn sys_set_priority(_prio: isize) -> isize {
         "kernel:pid[{}] sys_set_priority NOT IMPLEMENTED",
         current_task().unwrap().pid.0
     );
+    let task = current_task().unwrap();
+    let inner = task.inner_exclusive_access();
+    inner.task_priority = _prio;
     -1
 }
