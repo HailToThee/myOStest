@@ -275,6 +275,28 @@ impl MemorySet {
     pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
         self.page_table.translate(vpn)
     }
+    /// Check if memory range include allocated memory
+    pub fn include_allocated(&self, start_address: VirtAddr, end_address: VirtAddr) -> bool {
+        self.areas.iter().any(|area| {
+            area.vpn_range.get_end() > start_address.floor()
+                && area.vpn_range.get_start() < end_address.ceil()
+        })
+    }
+
+    /// Free the virtual memory area
+    pub fn free_framed_area(&mut self, start_va: VirtAddr, end_va: VirtAddr) {
+        let virtual_page_start = start_va.floor();
+        let virtual_page_end = end_va.ceil();
+        let index = self.areas.iter_mut().position(|map| {
+            map.vpn_range.get_start() == virtual_page_start
+                && map.vpn_range.get_end() == virtual_page_end
+        });
+
+        if let Some(index) = index {
+            self.areas[index].unmap(&mut self.page_table);
+            self.areas.remove(index);
+        }
+    }
 
     ///Remove all `MapArea`
     pub fn recycle_data_pages(&mut self) {
