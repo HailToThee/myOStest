@@ -200,11 +200,11 @@ impl TaskManager {
         let current = inner.current_task;
         let current_task = &mut inner.tasks[current];
         let memory_set = &mut current_task.memory_set;
-
+    
         let start_va = VirtAddr::from(start);
         let end_va = VirtAddr::from(start + len);
 
-        if !start_va.aligned() || !end_va.aligned() {
+        if !start_va.aligned() || !end_va.aligned() {   
             return -1;
         }
 
@@ -219,7 +219,7 @@ pub fn run_first_task() {
 }
 
 /// Switch current `Running` task to the task we have found,
-/// or there is no `Ready` task and we can exit with all applications completed
+/// or there is no `Ready` task then we can exit with all applications completed
 fn run_next_task() {
     TASK_MANAGER.run_next_task();
 }

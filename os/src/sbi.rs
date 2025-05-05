@@ -4,7 +4,7 @@ use core::arch::asm;
 
 const SBI_SET_TIMER: usize = 0;
 const SBI_CONSOLE_PUTCHAR: usize = 1;
-const SBI_SHUTDOWN: usize = 8;
+const SBI_SHUTDOWN: usize = 0x53525354;
 
 /// general sbi call
 #[inline(always)]
@@ -33,7 +33,7 @@ pub fn console_putchar(c: usize) {
     sbi_call(SBI_CONSOLE_PUTCHAR, c, 0, 0);
 }
 
-/// use sbi call to shutdown the kernel
+/// use sbi call to shut down the kernel
 pub fn shutdown() -> ! {
     sbi_call(SBI_SHUTDOWN, 0, 0, 0);
     panic!("It should shutdown!");

@@ -83,12 +83,22 @@ pub fn sys_task_info(_ti: *mut TaskInfo) -> isize {
 // YOUR JOB: Implement mmap.
 pub fn sys_mmap(_start: usize, _len: usize, _port: usize) -> isize {
     trace!("kernel: sys_mmap NOT IMPLEMENTED YET!");
+    if _start % 4096 != 0 {
+        println!("kernel: sys_mmap page start is not a multiple  of 4096");
+        return -1;
+    }
+    println!("this is a test sentence1");
     task_mmap(_start, _len, _port)
 }
 
 // YOUR JOB: Implement munmap.
 pub fn sys_munmap(_start: usize, _len: usize) -> isize {
     trace!("kernel: sys_munmap NOT IMPLEMENTED YET!");
+    if _start % 4096 != 0 {
+        println!("kernel: sys_mmap page start is not a multiple  of 4096");
+        return -1;
+    }
+    println!("this is a test sentence2");
     task_unmap(_start, _len)
 }
 /// change data segment size

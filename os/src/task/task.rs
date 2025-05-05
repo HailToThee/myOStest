@@ -141,6 +141,9 @@ impl TaskInfo {
     }
 
     pub fn add_syscall_time(&mut self, syscall_id: usize) {
+        if syscall_id >= MAX_SYSCALL_NUM {
+            panic!("syscall_id out of range");
+        }
         self.syscall_times[syscall_id] += 1;
     }
 
