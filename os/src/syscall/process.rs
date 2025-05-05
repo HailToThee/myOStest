@@ -120,6 +120,7 @@ fn mem_cpy_to_user_ph(user_ph_addr: *mut u8, kernel_addr: *const u8, len: usize)
     let token = current_user_token();
     unsafe {
         for i in 0..len {
+            //使用了虚拟地址到物理地址的转换函数 vaddr_to_pddr_u8 来进行内核态到用户态内存的写操作，从而避免了跨页导致的潜在非法访问问题。
             ptr::write(vaddr_to_pddr_u8(token, user_ph_addr.add(i)), *kernel_addr.add(i));
         }
     }
