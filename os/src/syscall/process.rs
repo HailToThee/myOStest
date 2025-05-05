@@ -1,10 +1,10 @@
 //! Process management syscalls
 use alloc::sync::Arc;
-
+use core::ptr;
 pub(crate) use crate::{
     config::MAX_SYSCALL_NUM,
     loader::get_app_data_by_name,
-    mm::{translated_refmut, translated_str,translated_byte_buffer},
+    mm::{translated_refmut, translated_str,vaddr_to_pddr_u8},
     task::{
         add_task, current_task, current_user_token, exit_current_and_run_next, get_task_info,
         suspend_current_and_run_next, TaskStatus, task_mmap, task_unmap,
@@ -115,22 +115,27 @@ pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
     // ---- release current PCB automatically
 }
 
+
+fn mem_cpy_to_user_ph(user_ph_addr: *mut u8, kernel_addr: *const u8, len: usize) {
+    let token = current_user_token();
+    unsafe {
+        for i in 0..len {
+            ptr::write(vaddr_to_pddr_u8(token, user_ph_addr.add(i)), *kernel_addr.add(i));
+        }
+    }
+}
 /// YOUR JOB: get time with second and microsecond
 /// HINT: You might reimplement it with virtual memory management.
 /// HINT: What if [`TimeVal`] is splitted by two pages ?
 pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
     trace!("kernel: sys_get_time");
-    let token = current_user_token();
-    let v = translated_byte_buffer(token, _ts as *const u8, 8);
-    let ts_ptr = v[0].as_ptr() as *mut TimeVal;
     let us = get_time_us();
-
-    unsafe {
-        *ts_ptr = TimeVal {
-            sec: us / 1_000_000,
-            usec: us % 1_000_000,
-        };
-    }
+    let time_val = TimeVal {
+        sec: us / 1_000_000,
+        usec: us % 1_000_000,
+    };
+    let time_val_ptr: *const TimeVal = &time_val;
+    mem_cpy_to_user_ph(_ts as *mut u8, time_val_ptr as *const u8, 16);
     0
 }
 
@@ -138,31 +143,45 @@ pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
 /// HINT: You might reimplement it with virtual memory management.
 /// HINT: What if [`TaskInfo`] is splitted by two pages ?
 pub fn sys_task_info(_ti: *mut TaskInfo) -> isize {
-    trace!("kernel: sys_task_info NOT IMPLEMENTED YET!");
-    let token = current_user_token();
-    let v = translated_byte_buffer(token, _ti as *const u8, 8);
-    let ti_ptr = v[0].as_ptr() as *mut TaskInfo;
+    trace!("kernel: sys_task_info");
     let task_info = get_task_info();
-
-    unsafe {
-        *ti_ptr = TaskInfo {
-            status: task_info.status,
-            syscall_times: task_info.syscall_times,
-            time: task_info.time,
-        };
-    }
+    let kti= TaskInfo {
+        status: task_info.status,
+        syscall_times: task_info.syscall_times,
+        time: task_info.time,
+    };
+    let kti_ptr: *const TaskInfo = &kti;
+    mem_cpy_to_user_ph(_ti as *mut u8, kti_ptr as *const u8, 2016);
     0
 }
 
 // YOUR JOB: Implement mmap.
-pub fn sys_mmap(_start: usize, _len: usize, _port: usize) -> isize {
+pub fn sys_mmap(start: usize, _len: usize, port: usize) -> isize {
     trace!("kernel: sys_mmap NOT IMPLEMENTED YET!");
-    task_mmap(_start, _len, _port)
+    if start % 4096 != 0 {
+        println!("kernel: sys_mmap page start is not a multiple  of 4096");
+        return -1;
+    }
+    if port & !0x7 != 0 {
+        println!("kernel: sys_mmap prot is not valid, 1");
+        return -1;
+    }
+    if port & 0x7 == 0 {
+        println!("kernel: sys_mmap prot is not valid, 2");
+        return -1;
+    }
+    println!("MAPPING");
+    task_mmap(start, _len, port)
 }
 
 // YOUR JOB: Implement munmap.
 pub fn sys_munmap(_start: usize, _len: usize) -> isize {
     trace!("kernel: sys_munmap NOT IMPLEMENTED YET!");
+    if _start % 4096 != 0 {
+        println!("kernel: sys_munmap page start is not a multiple  of 4096");
+        return -1;
+    }
+    println!("UNMAPPING");
     task_unmap(_start, _len)
 }
 
@@ -182,7 +201,7 @@ pub fn sys_spawn(path: *const u8) -> isize {
     trace!("kernel:pid[{}] sys_spawn", current_task().unwrap().pid.0);
     let current_task = current_task().unwrap();
     let new_task = current_task.fork();
-    let _new_pid = new_task.pid.0;
+    let new_pid = new_task.pid.0;
 
     let token = current_user_token();
     let path = translated_str(token, path);
@@ -194,20 +213,21 @@ pub fn sys_spawn(path: *const u8) -> isize {
 
     add_task(new_task);
 
-    0
+    new_pid as isize
 }
 
 // YOUR JOB: Set task priority.
 pub fn sys_set_priority(_prio: isize) -> isize {
-    trace!(
-        "kernel:pid[{}] sys_set_priority NOT IMPLEMENTED",
-        current_task().unwrap().pid.0
-    );
-    if _prio < 0 {
+    // trace!(
+    //     "kernel:pid[{}] sys_set_priority NOT IMPLEMENTED",
+    //     current_task().unwrap().pid.0
+    // );
+    // println!("PRIORITY");
+    if _prio <= 1 {
         return -1;
     }
     let task = current_task().unwrap();
     let mut inner = task.inner_exclusive_access();
-    inner.task_priority = _prio as usize; 
-    -1
+    inner.task_priority = _prio;
+    _prio
 }

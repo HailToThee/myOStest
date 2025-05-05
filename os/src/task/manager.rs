@@ -37,17 +37,25 @@ impl TaskManager {
         self.ready_queue.push_back(task);
     }
     /// Take a process out of the ready queue
-    fn fetch(&self) -> Option<Arc<TaskControlBlock>> {
-        let mut min_stride = usize::MAX;
-        let mut min_task = None;
-        for task in self.ready_queue.iter() {
-            let stride = task.inner_exclusive_access().task_stride;
-            if stride < min_stride {
-                min_stride = stride;
-                min_task = Some(task.clone());
+    pub fn fetch(&mut self) -> Option<Arc<TaskControlBlock>> {
+        // self.ready_queue.pop_front()
+        if self.ready_queue.is_empty() {
+            println!("fetch none");
+            return None;
+        }
+        let mut ret_idx = 0;
+        for (idx, item) in self.ready_queue.iter().enumerate() {
+            if idx == ret_idx {
+                continue;
+            }
+            let inner = item.inner_exclusive_access();
+            let ret_inner = self.ready_queue[ret_idx].inner_exclusive_access();
+            if inner.task_stride < ret_inner.task_stride {
+                ret_idx = idx;
             }
         }
-        min_task
+                                
+        self.ready_queue.remove(ret_idx)//So I didn't remove, and that caused the error of bad address
     }
     fn get_task_info(&self) -> TaskInfo {
         let task= current_task().unwrap();

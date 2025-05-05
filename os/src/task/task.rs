@@ -71,8 +71,8 @@ pub struct TaskControlBlockInner {
 
     pub sys_call_times: [u32; MAX_SYSCALL_NUM],
     pub start_time: usize,
-    pub task_priority: usize,
-    pub task_stride: usize,
+    pub task_priority: isize,
+    pub task_stride: isize,
 }
 
 impl TaskControlBlockInner {
