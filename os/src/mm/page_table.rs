@@ -218,7 +218,19 @@ pub fn translated_refmut<T>(token: usize, ptr: *mut T) -> &'static mut T {
         .unwrap()
         .get_mut()
 }
-
+/// Virtual address to physical address
+pub fn vaddr_to_pddr_u8(token: usize, ptr: *const u8) -> *mut u8 {
+    let page_table = PageTable::from_token(token);
+    let start = ptr as usize;
+    let start_va = VirtAddr::from(start);
+    let vpn = start_va.floor();
+    let ppn = page_table.translate(vpn).unwrap().ppn();
+    let paddr: *mut u8 = ppn.get_mut();
+    let offset = start_va.page_offset();
+    unsafe {
+        paddr.add(offset)
+    }
+}
 /// An abstraction over a buffer passed from user space to kernel space
 pub struct UserBuffer {
     /// A list of buffers
