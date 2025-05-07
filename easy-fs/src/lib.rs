@@ -6,7 +6,8 @@ mod bitmap;
 mod block_cache;
 mod block_dev;
 mod efs;
-mod layout;
+/// This module defines the layout of the file system, including structures and constants.
+pub mod layout;
 mod vfs;
 /// Use a block size of 512 bytes
 pub const BLOCK_SZ: usize = 512;

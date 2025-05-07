@@ -9,8 +9,7 @@ pub struct BlockCache {
     cache: [u8; BLOCK_SZ],
     /// underlying block id
     block_id: usize,
-    /// underlying block device,当最后一个持有 Arc 的变量被销毁时，被其包裹的数据也会被清理掉。
-    /// Arc 使用原子操作来实现线程安全的引用计数，因此适用于并发场景。
+    /// underlying block device
     block_device: Arc<dyn BlockDevice>,
     /// whether the block is dirty
     modified: bool,
@@ -32,8 +31,7 @@ impl BlockCache {
     fn addr_of_offset(&self, offset: usize) -> usize {
         &self.cache[offset] as *const _ as usize
     }
-    ///从块缓存（self.cache）中偏移 offset 字节的位置开始，将连续的 size_of::<T>() 字节解释为一个类型为 T 的值。
-    /// 返回这个值的引用（只读或可变）。
+
     pub fn get_ref<T>(&self, offset: usize) -> &T
     where
         T: Sized,

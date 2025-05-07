@@ -4,7 +4,6 @@ mod inode;
 mod stdio;
 
 use crate::mm::UserBuffer;
-
 /// trait File for all file types
 pub trait File: Send + Sync {
     /// the file readable?
@@ -15,16 +14,8 @@ pub trait File: Send + Sync {
     fn read(&self, buf: UserBuffer) -> usize;
     /// write to the file from buf, return the number of bytes written
     fn write(&self, buf: UserBuffer) -> usize;
-    /// stats the file, return the stat struct
-    fn stats(&self) -> Stat {
-        Stat {
-            dev: 0,
-            ino: 0,
-            mode: StatMode::NULL,
-            nlink: 1,
-            pad: [0; 7],
-        }
-    }
+     /// stat the file
+     fn stat(&self, st: &mut Stat) -> isize;
 }
 
 /// The stat of a inode
@@ -40,11 +31,8 @@ pub struct Stat {
     /// number of hard links
     pub nlink: u32,
     /// unused pad
-    pad: [u64; 7],
-
+    pub pad: [u64; 7],
 }
-
-
 
 bitflags! {
     /// The mode of a inode
@@ -58,19 +46,24 @@ bitflags! {
         const FILE  = 0o100000;
     }
 }
-/// linkat
-pub fn linkat(old: &str, new: &str) -> Option<Arc<Inode>> {
-    let old_inode_id = ROOT_INODE.get_inode_id(old).unwrap();
-    ROOT_INODE.linkat(new, old_inode_id)
+/// linkat 
+pub fn linkat(old: &str, new: &str) -> isize {
+    println!("linkat: old={}, new={}", old, new);
+    if ROOT_INODE.link(old, new).is_some() {
+        0
+    } else {
+        -1
+    }
 }
-
-/// unlinkat
-pub fn unlinkat(name: &str) -> bool {
-    ROOT_INODE.unlinkat(name)
+///uninkat
+pub fn unlinkat(name: &str) -> isize {
+    println!("unlinkat: name={}", name);
+    if ROOT_INODE.unlink(name).is_some() {
+        0
+    } else {
+        -1
+    }
 }
-use self::inode::ROOT_INODE;
-use alloc::sync::Arc;
-use easy_fs::Inode;
-
+use inode::ROOT_INODE;
 pub use inode::{list_apps, open_file, OSInode, OpenFlags};
 pub use stdio::{Stdin, Stdout};

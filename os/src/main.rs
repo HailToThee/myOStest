@@ -69,7 +69,7 @@ pub fn rust_main() -> ! {
     println!("[kernel] Hello, world!");
     logging::init();
     mm::init();
-    mm::remap_test();
+    // mm::remap_test();
     trap::init();
     trap::enable_timer_interrupt();
     timer::set_next_trigger();

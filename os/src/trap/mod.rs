@@ -31,6 +31,7 @@ global_asm!(include_str!("trap.S"));
 
 /// Initialize trap handling
 pub fn init() {
+    println!("[kernel] init trap");
     set_kernel_trap_entry();
 }
 

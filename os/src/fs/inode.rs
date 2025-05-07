@@ -8,19 +8,18 @@ use super::{File, Stat, StatMode};
 use crate::drivers::BLOCK_DEVICE;
 use crate::mm::UserBuffer;
 use crate::sync::UPSafeCell;
+use alloc::sync::Arc;
 use alloc::vec::Vec;
-use alloc::{string::String, sync::Arc};
 use bitflags::*;
 use easy_fs::{EasyFileSystem, Inode};
+use easy_fs::layout::DiskInodeType;
 use lazy_static::*;
-
 /// inode in memory
 /// A wrapper around a filesystem inode
 /// to implement File trait atop
 pub struct OSInode {
     readable: bool,
     writable: bool,
-    name: String,
     inner: UPSafeCell<OSInodeInner>,
 }
 /// The OS inode inner in 'UPSafeCell'
@@ -31,11 +30,10 @@ pub struct OSInodeInner {
 
 impl OSInode {
     /// create a new inode in memory
-    pub fn new(readable: bool, writable: bool, name: &str, inode: Arc<Inode>) -> Self {
+    pub fn new(readable: bool, writable: bool, inode: Arc<Inode>) -> Self {
         Self {
             readable,
             writable,
-            name: name.into(),
             inner: unsafe { UPSafeCell::new(OSInodeInner { offset: 0, inode }) },
         }
     }
@@ -109,19 +107,19 @@ pub fn open_file(name: &str, flags: OpenFlags) -> Option<Arc<OSInode>> {
         if let Some(inode) = ROOT_INODE.find(name) {
             // clear size
             inode.clear();
-            Some(Arc::new(OSInode::new(readable, writable, name, inode)))
+            Some(Arc::new(OSInode::new(readable, writable, inode)))
         } else {
             // create file
             ROOT_INODE
                 .create(name)
-                .map(|inode| Arc::new(OSInode::new(readable, writable, name, inode)))
+                .map(|inode| Arc::new(OSInode::new(readable, writable, inode)))
         }
     } else {
         ROOT_INODE.find(name).map(|inode| {
             if flags.contains(OpenFlags::TRUNC) {
                 inode.clear();
             }
-            Arc::new(OSInode::new(readable, writable, name, inode))
+            Arc::new(OSInode::new(readable, writable, inode))
         })
     }
 }
@@ -137,7 +135,7 @@ impl File for OSInode {
         let mut inner = self.inner.exclusive_access();
         let mut total_read_size = 0usize;
         for slice in buf.buffers.iter_mut() {
-            let read_size = inner.inode.read_at(inner.offset, slice);
+            let read_size = inner.inode.read_at(inner.offset, *slice);
             if read_size == 0 {
                 break;
             }
@@ -150,21 +148,22 @@ impl File for OSInode {
         let mut inner = self.inner.exclusive_access();
         let mut total_write_size = 0usize;
         for slice in buf.buffers.iter() {
-            let write_size = inner.inode.write_at(inner.offset, slice);
+            let write_size = inner.inode.write_at(inner.offset, *slice);
             assert_eq!(write_size, slice.len());
             inner.offset += write_size;
             total_write_size += write_size;
         }
         total_write_size
     }
-    fn stats(&self) -> Stat {
-        let ino = ROOT_INODE.get_inode_id(&self.name).unwrap();
-        Stat {
-            dev: 0,
-            ino: ino as u64,
-            nlink: ROOT_INODE.hardlink_count(ino),
-            mode: StatMode::from_bits_truncate(self.inner.exclusive_access().inode.file_type()),
-            pad: [0; 7],
-        }
+    fn stat(&self, st: &mut Stat) -> isize {
+        let inner = self.inner.exclusive_access();
+        inner.inode.read_disk_inode(|disk_inode| {
+            st.mode = match disk_inode.type_ {
+                DiskInodeType::File => StatMode::FILE,
+                DiskInodeType::Directory => StatMode::DIR,
+            };
+            st.nlink = disk_inode.nlink;
+        });
+        0
     }
 }

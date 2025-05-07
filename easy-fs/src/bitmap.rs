@@ -6,7 +6,7 @@ type BitmapBlock = [u64; 64];
 const BLOCK_BITS: usize = BLOCK_SZ * 8;
 /// A bitmap
 pub struct Bitmap {
-    start_block_id: usize,//bitmap在块设备中的起始块号  也就是bitmap存储在哪个块中
+    start_block_id: usize,
     blocks: usize,
 }
 

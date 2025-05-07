@@ -1,8 +1,7 @@
 //! File and filesystem-related syscalls
-use crate::fs::{open_file, OpenFlags, Stat};
+use crate::fs::{open_file, OpenFlags, Stat,StatMode};
 use crate::mm::{translated_byte_buffer, translated_str, UserBuffer};
 use crate::task::{current_task, current_user_token};
-use crate::syscall::process::mem_cpy_to_user_ph;
 use crate::fs::linkat;
 use crate::fs::unlinkat;
 pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
@@ -78,56 +77,60 @@ pub fn sys_close(fd: usize) -> isize {
 }
 
 /// YOUR JOB: Implement fstat.
-pub fn sys_fstat(_fd: usize, _st: *mut Stat) -> isize {
-    // trace!(
-    //     "kernel:pid[{}] sys_fstat NOT IMPLEMENTED",
-    //     current_task().unwrap().pid.0
-    // );
-    // -1
-    let token=current_user_token();
-    let task=current_task().unwrap();
-    let inner=task.inner_exclusive_access();
-    if _fd >= inner.fd_table.len() {
+pub fn sys_fstat(fd: usize, st: *mut Stat) -> isize {
+    trace!("kernel:pid[{}] sys_fstat", current_task().unwrap().pid.0);
+    let token = current_user_token();
+    let task = current_task().unwrap();
+    let inner = task.inner_exclusive_access();
+    
+    if fd >= inner.fd_table.len() || inner.fd_table[fd].is_none() {
         return -1;
     }
-    if let Some(file) = inner.fd_table[_fd].as_deref(){
-        let fstat=file.stats();
-        let fst_ptr: *const Stat = &fstat;
-        mem_cpy_to_user_ph(token, _st as *mut u8, fst_ptr as *const u8, 80);
-        return  0;
-    }
-    -1
-}
 
-/// YOUR JOB: Implement linkat.
-pub fn sys_linkat(_old_name: *const u8, _new_name: *const u8) -> isize {
-    // trace!(
-    //     "kernel:pid[{}] sys_linkat NOT IMPLEMENTED",
-    //     current_task().unwrap().pid.0
-    // );
-    let token=current_user_token();
-    let old_name=translated_str(token, _old_name);
-    let new_name=translated_str(token, _new_name);
-    if linkat(&old_name,&new_name).is_some(){
+    if let Some(file) = &inner.fd_table[fd] {
+        let file = file.clone();
+        drop(inner);
+        let mut stat = Stat {
+            dev: 0,
+            ino: 0,
+            mode: StatMode::NULL,
+            nlink: 0,
+            pad: [0; 7],
+        };
+        if file.stat(&mut stat) != 0 {
+            return -1;
+        }
+        let stat_bytes = unsafe { core::slice::from_raw_parts(&stat as *const Stat as *const u8, core::mem::size_of::<Stat>()) };
+        let mut stat_buf = UserBuffer::new(translated_byte_buffer(token, st as *const u8, core::mem::size_of::<Stat>()));
+        let mut offset = 0;
+        for buffer in stat_buf.buffers.iter_mut() {
+            let len = buffer.len().min(stat_bytes.len() - offset);
+            if len == 0 {
+                break;
+            }
+            buffer[..len].copy_from_slice(&stat_bytes[offset..offset + len]);
+            offset += len;
+        }
+        if offset != stat_bytes.len() {
+            return -1;
+        }
         0
-    }
-    else {
+    } else {
         -1
     }
 }
-
-/// YOUR JOB: Implement unlinkat.
-pub fn sys_unlinkat(_name: *const u8) -> isize {
-    // trace!(
-    //     "kernel:pid[{}] sys_unlinkat NOT IMPLEMENTED",
-    //     current_task().unwrap().pid.0
-    // );
-    // -1
-    let token=current_user_token();
-    if unlinkat(&translated_str(token,_name)){
-        0
-    }
-    else{
-        -1
-    }
+///linkat
+pub fn sys_linkat(old_name: *const u8, new_name: *const u8) -> isize {
+    trace!("kernel:pid[{}] sys_linkat", current_task().unwrap().pid.0);
+    let token = current_user_token();
+    let old_name = translated_str(token, old_name);
+    let new_name = translated_str(token, new_name);
+    linkat(&old_name, &new_name)
+}
+///unlinkat
+pub fn sys_unlinkat(name: *const u8) -> isize {
+    trace!("kernel:pid[{}] sys_unlinkat", current_task().unwrap().pid.0);
+    let token = current_user_token();
+    let name = translated_str(token, name);
+    unlinkat(&name)
 }
