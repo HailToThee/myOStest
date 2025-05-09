@@ -7,6 +7,11 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 use spin::{Mutex, MutexGuard};
 /// Virtual filesystem layer over easy-fs
+/// 有了diskinode为什么还要有inode?
+/// inode是一个抽象概念，表示一个文件的元数据
+/// disk inode是一个具体的实现，表示一个文件在磁盘上的存储方式，inode对diskinode进行更高层次的封装
+/// 使得我们可以在内存中操作文件，而不需要直接操作磁盘
+/// 通过inode可以更方便地进行文件的创建、删除、读写等操作
 pub struct Inode {
     block_id: usize,
     block_offset: usize,
