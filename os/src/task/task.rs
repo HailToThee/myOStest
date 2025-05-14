@@ -13,6 +13,7 @@ pub struct TaskControlBlock {
     /// The Task Info
     pub task_info: TaskInfo,
 }
+/// The task information
 #[derive(Copy, Clone)]
 pub struct TaskInfo{
     ///Times for each syscall
